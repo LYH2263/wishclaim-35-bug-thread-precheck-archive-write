@@ -18,7 +18,9 @@ def write_gate(status: str | None, expires_at: str | None, now: datetime) -> dic
     Only reads state — never mutates it.
     """
     if status == "fulfilled":
-        return {"state": "archived", "writable": True, "reason": ""}
+        # Archived is terminal: read-only forever, no unfreeze path can
+        # reopen it (release/sweep only touch 'claimed' rows).
+        return {"state": "archived", "writable": False, "reason": "archived"}
     if status == "claimed":
         if not expires_at:
             # Defensive: claimed without an expiry is treated as locked.
