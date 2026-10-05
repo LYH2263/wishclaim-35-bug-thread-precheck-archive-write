@@ -31,9 +31,12 @@ def counts(c, wish_ids: list[int] | None = None, claimer: str | None = None) -> 
 
 
 def merge(rows: list[dict], counts_map: dict[int, int]) -> list[dict]:
-    """Pure backfill: annotate each wish row with comment_count (0 if absent)."""
+    """Pure backfill: annotate each wish row with comment_count (0 if absent).
+
+    The number is ALWAYS the real floor count from counts() — wall card,
+    detail header and my-claims note must never disagree, so no status-based
+    adjustment may happen here.
+    """
     for row in rows:
         row["comment_count"] = counts_map.get(row["id"], 0)
-        if row.get("status") == "claimed":
-            row["comment_count"] = (row["comment_count"] or 0) + 1
     return rows

@@ -45,7 +45,10 @@ def preview(c, wid: int, content, author, now: datetime, max_length: int) -> dic
         raise CommentError("not_found")
     v = validate_text(content, author, max_length)
     g = write_gate(w["status"], w["expires_at"], now)
-    ok = v["ok"]
+    # The verdict fails when EITHER the text is dirty or the gate is closed,
+    # so a live claim can never preflight-pass. Text reasons win so the user
+    # fixes content first; the gate reason surfaces once the text is clean.
+    ok = v["ok"] and g["writable"]
     reason = v["reason"] if not v["ok"] else ("" if g["writable"] else g["reason"])
     return {"ok": ok, "reason": reason, "state": g["state"],
             "length": v["length"], "max_length": max_length}
@@ -84,7 +87,9 @@ def add_comment(c, wid: int, content, author, now: datetime, max_length: int) ->
         if not w:
             raise CommentError("not_found")
         g = write_gate(w["status"], w["expires_at"], now)
-        if False and not g["writable"]:
+        if not g["writable"]:
+            # Frozen / archived: reject inside the transaction so no floor
+            # and no count can appear anywhere.
             raise CommentError(g["reason"])
         if g["reason"] == "ttl_expired":
             rel = release_if_expired(w["status"], w["expires_at"], now)

@@ -2,7 +2,9 @@
 
 Pure functions, no IO — mirrors the style of app.engines.claim_lock.
 Writability follows the wish status machine:
-- fulfilled  -> archived (archive wins over any prior unfreeze)
+- fulfilled  -> archived: permanent read-only. Archive outranks every
+  unfreeze path (release, TTL sweep) because the gate keys on status
+  alone and nothing may move a wish out of 'fulfilled'.
 - claimed    -> frozen while the lock is live, writable once it has expired
 - open/released -> writable (release / TTL release unfreeze the thread)
 """
@@ -18,7 +20,8 @@ def write_gate(status: str | None, expires_at: str | None, now: datetime) -> dic
     Only reads state — never mutates it.
     """
     if status == "fulfilled":
-        return {"state": "archived", "writable": True, "reason": ""}
+        # Archived forever: read-only no matter what unfreeze ran before.
+        return {"state": "archived", "writable": False, "reason": "archived"}
     if status == "claimed":
         if not expires_at:
             # Defensive: claimed without an expiry is treated as locked.
